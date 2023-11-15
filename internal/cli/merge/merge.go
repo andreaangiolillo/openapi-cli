@@ -3,6 +3,7 @@ package merge
 import (
 	"andreaangiolillo/openapi-cli/internal/openapi"
 	"encoding/json"
+	"fmt"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -31,6 +32,8 @@ func (o *Opts) SaveFile(federated *openapi.V3Document) error {
 	if err = os.WriteFile(o.outputPath, data, 0644); err != nil {
 		return err
 	}
+
+	_, _ = fmt.Printf("Federated Spec was saved in '%s'\n", o.outputPath)
 	return nil
 }
 
