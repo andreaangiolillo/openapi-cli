@@ -19,7 +19,9 @@ func Builder(argsWithoutProg []string) *cobra.Command {
 		Version: Version,
 		Use:     ToolName,
 		Short:   "CLI tool to validate and merge your Open API Specifications",
-		Long:    fmt.Sprintf("Use %s command help for information on a specific command", ToolName),
+		Long: fmt.Sprintf(`
+CLI tool to validate and merge your Open API Specifications.
+`),
 		Example: `  # Display the help menu for the merge command:
   openapicli merge --help
 `,

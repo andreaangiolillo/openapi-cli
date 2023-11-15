@@ -3,7 +3,7 @@
 GOLANGCI_VERSION=v1.55.0
 COVERAGE=coverage.out
 
-SOURCE_FILES?=./cmd/openapicli
+SOURCE_FILES?=./cmd
 BINARY_NAME=openapicli
 VERSION=$(GITTAG:v%=%)
 GIT_SHA?=$(shell git rev-parse HEAD)
@@ -13,13 +13,10 @@ LINKER_FLAGS=-s -w -X github.com/mongodb/mongodb-atlas-cli/internal/version.GitC
 
 DEBUG_FLAGS=all=-N -l
 
-
 export PATH := $(shell go env GOPATH)/bin:$(PATH)
 export PATH := ./bin:$(PATH)
 export TERM := linux-m
 export GO111MODULE := on
-export MCLI_E2E_BINARY
-export ATLAS_E2E_BINARY
 
 .PHONY: deps
 deps:  ## Download go module dependencies
@@ -35,15 +32,14 @@ fmt-all: ### Format all go files with goimports and gofmt
 	find . -name "*.go" -not -path "./vendor/*" -not -path "./internal/mocks" -exec gofmt -w "{}" \;
 	find . -name "*.go" -not -path "./vendor/*" -not -path "./internal/mocks" -exec goimports -l -w "{}" \;
 
-.PHONY: test
-test: unit-test integration-test fuzz-normalizer-test
-
 .PHONY: build
+build:
 	@echo "==> Building openapicli binary"
 	go build -ldflags "$(LINKER_FLAGS)" -o $(DESTINATION) $(SOURCE_FILES)
 
 
 .PHONY: build-debug
+build-debug:
 	@echo "==> Building openapicli binary for debugging"
 	go build -gcflags="$(DEBUG_FLAGS)" -ldflags "$(LINKER_FLAGS)" -o $(DESTINATION) $(SOURCE_FILES)
 
