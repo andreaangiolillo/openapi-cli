@@ -14,7 +14,7 @@ type Opts struct {
 }
 
 func (o *Opts) Run(args []string) error {
-	federated, err := o.Merger.Merge(args)
+	federated, err := o.Merger.Merge(args[1:])
 	if err != nil {
 		return err
 	}
@@ -23,7 +23,7 @@ func (o *Opts) Run(args []string) error {
 }
 
 func (o *Opts) SaveFile(federated *openapi.V3Document) error {
-	data, err := json.Marshal(federated)
+	data, err := json.MarshalIndent(federated, "", "    ")
 	if err != nil {
 		return err
 	}

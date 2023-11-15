@@ -2,9 +2,6 @@ package openapi
 
 import (
 	"andreaangiolillo/openapi-cli/internal/openapi/errors"
-	"github.com/pb33f/libopenapi/datamodel/high/base"
-	model "github.com/pb33f/libopenapi/datamodel/high/base"
-	v3model "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
 type V3Merge struct {
@@ -21,6 +18,7 @@ func (o V3Merge) mergeSpecIntoBase(spec *V3Document) (*V3Document, error) {
 	federatedSpec := &V3Document{
 		Version: o.base.Version,
 		Info:    o.base.Info,
+		Servers: o.base.Servers,
 	}
 
 	paths, err := mergePaths(o.base.Paths, spec.Paths)
@@ -44,17 +42,15 @@ func (o V3Merge) mergeSpecIntoBase(spec *V3Document) (*V3Document, error) {
 	return federatedSpec, nil
 }
 
-func mergePaths(basePaths *v3model.Paths, pathsToMerge *v3model.Paths) (*v3model.Paths, error) {
-	out := &v3model.Paths{}
-	outPathItems := map[string]*v3model.PathItem{}
-	basePathItems := basePaths.PathItems
+func mergePaths(basePaths map[string]any, pathsToMerge map[string]any) (map[string]any, error) {
+	outPathItems := map[string]any{}
 
 	// Copy base path to the federated spec paths
-	for k, v := range basePathItems {
+	for k, v := range basePaths {
 		outPathItems[k] = v
 	}
 
-	for k, v := range pathsToMerge.PathItems {
+	for k, v := range pathsToMerge {
 		if _, ok := outPathItems[k]; !ok {
 			outPathItems[k] = v
 		} else {
@@ -64,14 +60,11 @@ func mergePaths(basePaths *v3model.Paths, pathsToMerge *v3model.Paths) (*v3model
 		}
 	}
 
-	out.Extensions = basePaths.Extensions
-	out.PathItems = outPathItems
-
-	return out, nil
+	return outPathItems, nil
 }
 
-func mergeTags(baseTags []*model.Tag, tagsToMerge []*model.Tag) ([]*model.Tag, error) {
-	out := []*model.Tag{}
+func mergeTags(baseTags []*Tag, tagsToMerge []*Tag) ([]*Tag, error) {
+	var out []*Tag
 	tagsSet := make(map[string]bool)
 
 	// Copy base tags to the federated spec tags
@@ -94,8 +87,8 @@ func mergeTags(baseTags []*model.Tag, tagsToMerge []*model.Tag) ([]*model.Tag, e
 	return out, nil
 }
 
-func mergeComponents(baseCps *v3model.Components, cpsToMerge *v3model.Components) (*v3model.Components, error) {
-	outComponents := &v3model.Components{
+func mergeComponents(baseCps *Components, cpsToMerge *Components) (*Components, error) {
+	outComponents := &Components{
 		SecuritySchemes: baseCps.SecuritySchemes,
 		Parameters:      baseCps.Parameters,
 		Responses:       baseCps.Responses,
@@ -117,7 +110,7 @@ func mergeComponents(baseCps *v3model.Components, cpsToMerge *v3model.Components
 	return outComponents, nil
 }
 
-func mergeParameters(baseCps *v3model.Components, params map[string]*v3model.Parameter) error {
+func mergeParameters(baseCps *Components, params map[string]*any) error {
 	for k, v := range params {
 		if _, ok := baseCps.Parameters[k]; !ok {
 			baseCps.Parameters[k] = v
@@ -131,7 +124,7 @@ func mergeParameters(baseCps *v3model.Components, params map[string]*v3model.Par
 	return nil
 }
 
-func mergeResponses(baseCps *v3model.Components, responses map[string]*v3model.Response) error {
+func mergeResponses(baseCps *Components, responses map[string]*any) error {
 	for k, v := range responses {
 		if _, ok := baseCps.Responses[k]; !ok {
 			baseCps.Responses[k] = v
@@ -145,7 +138,7 @@ func mergeResponses(baseCps *v3model.Components, responses map[string]*v3model.R
 	return nil
 }
 
-func mergeSchemas(baseCps *v3model.Components, schemas map[string]*base.SchemaProxy) error {
+func mergeSchemas(baseCps *Components, schemas map[string]*any) error {
 	for k, v := range schemas {
 		if _, ok := baseCps.Schemas[k]; !ok {
 			baseCps.Schemas[k] = v

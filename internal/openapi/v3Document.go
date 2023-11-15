@@ -1,11 +1,9 @@
 package openapi
 
 import (
-	"fmt"
-	"github.com/pb33f/libopenapi"
+	"encoding/json"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	model "github.com/pb33f/libopenapi/datamodel/high/base"
-	v3model "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"os"
 )
 
@@ -17,12 +15,12 @@ type V3Document struct {
 	// Info represents a specification Info definitions
 	// Provides metadata about the API. The metadata MAY be used by tooling as required.
 	// - https://spec.openapis.org/oas/v3.1.0#info-object
-	Info *base.Info `json:"info,omitempty" yaml:"info,omitempty"`
+	Info *Info `json:"info,omitempty" yaml:"info,omitempty"`
 
 	// Servers is a slice of Server instances which provide connectivity information to a target server. If the servers
 	// property is not provided, or is an empty array, the default value would be a Server Object with an url value of /.
 	// - https://spec.openapis.org/oas/v3.1.0#server-object
-	Servers []*v3model.Server `json:"servers,omitempty" yaml:"servers,omitempty"`
+	Servers *any `json:"servers,omitempty" yaml:"servers,omitempty"`
 
 	// Tags is a slice of base.Tag instances defined by the specification
 	// A list of tags used by the document with additional metadata. The order of the tags can be used to reflect on
@@ -30,48 +28,73 @@ type V3Document struct {
 	// The tags that are not declared MAY be organized randomly or based on the tools’ logic.
 	// Each tag name in the list MUST be unique.
 	// - https://spec.openapis.org/oas/v3.1.0#tag-object
-	Tags []*model.Tag `json:"tags,omitempty" yaml:"tags,omitempty"`
+	Tags []*Tag `json:"tags,omitempty" yaml:"tags,omitempty"`
 
 	// Paths contains all the PathItem definitions for the specification.
 	// The available paths and operations for the API, The most important part of ths spec.
 	// - https://spec.openapis.org/oas/v3.1.0#paths-object
-	Paths *v3model.Paths `json:"paths,omitempty" yaml:"paths,omitempty"`
+	Paths map[string]any `json:"paths,omitempty" yaml:"paths,omitempty"`
 
 	// Components is an element to hold various schemas for the document.
 	// - https://spec.openapis.org/oas/v3.1.0#components-object
-	Components *v3model.Components `json:"components,omitempty" yaml:"components,omitempty"`
+	Components *Components `json:"components,omitempty" yaml:"components,omitempty"`
+}
+
+// Info represents a high-level Info object as defined by both OpenAPI 2 and OpenAPI 3.
+type Info struct {
+	Summary        string        `json:"summary,omitempty" yaml:"summary,omitempty"`
+	Title          string        `json:"title,omitempty" yaml:"title,omitempty"`
+	Description    string        `json:"description,omitempty" yaml:"description,omitempty"`
+	TermsOfService string        `json:"termsOfService,omitempty" yaml:"termsOfService,omitempty"`
+	Contact        *base.Contact `json:"contact,omitempty" yaml:"contact,omitempty"`
+	License        *base.License `json:"license,omitempty" yaml:"license,omitempty"`
+	Version        string        `json:"version,omitempty" yaml:"version,omitempty"`
+}
+
+// Components represents a high-level OpenAPI 3+ Components Object
+type Components struct {
+	Schemas         map[string]*any `json:"schemas,omitempty" yaml:"schemas,omitempty"`
+	Responses       map[string]*any `json:"responses,omitempty" yaml:"responses,omitempty"`
+	Parameters      map[string]*any `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	SecuritySchemes map[string]any  `json:"securitySchemes,omitempty" yaml:"securitySchemes,omitempty"`
+}
+
+// Tag represents a high-level Tag instance that is backed by a low-level one.
+type Tag struct {
+	Name         string             `json:"name,omitempty" yaml:"name,omitempty"`
+	Description  string             `json:"description,omitempty" yaml:"description,omitempty"`
+	ExternalDocs *model.ExternalDoc `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
 }
 
 // NewV3Document returns and openAPI V3 document from a path
 func NewV3Document(path string) (*V3Document, error) {
-	// load the base OpenAPI 3 specification from bytes
-	baseSpecBytes, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 
-	// create a new document from specification bytes
-	d, err := libopenapi.NewDocument(baseSpecBytes)
+	// Read the first few bytes to check for BOM
+	bom := make([]byte, 3)
+	_, err = file.Read(bom)
 	if err != nil {
 		return nil, err
 	}
 
-	// because we know this is a v3 spec, we can build a ready to go v3model from it.
-	v3Model, errors := d.BuildV3Model()
-	if len(errors) > 0 {
-		for i := range errors {
-			fmt.Printf("error: %e\n", errors[i])
+	// Check if BOM exists
+	if bom[0] != 0xEF || bom[1] != 0xBB || bom[2] != 0xBF {
+		// No BOM, reset the read pointer to the start of the file
+		_, err = file.Seek(0, 0)
+		if err != nil {
+			return nil, err
 		}
-		panic(fmt.Sprintf("cannot create v3 v3model from document: %d errors reported",
-			len(errors)))
 	}
 
-	return &V3Document{
-		Version:    v3Model.Model.Version,
-		Info:       v3Model.Model.Info,
-		Servers:    v3Model.Model.Servers,
-		Tags:       v3Model.Model.Tags,
-		Paths:      v3Model.Model.Paths,
-		Components: v3Model.Model.Components,
-	}, nil
+	var doc *V3Document
+
+	decoder := json.NewDecoder(file)
+	if err = decoder.Decode(&doc); err != nil {
+		return nil, err
+	}
+
+	return doc, nil
 }
