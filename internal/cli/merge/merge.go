@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tufin/oasdiff/load"
 	"os"
+	"regexp"
 )
 
 type Opts struct {
@@ -20,17 +21,32 @@ func (o *Opts) Run(args []string) error {
 		return err
 	}
 
-	return o.SaveFile(federated)
-}
-
-func (o *Opts) SaveFile(federated *load.SpecInfo) error {
-	//yamlData, _ := yaml.Marshal(federated.Spec)
-	data, err := federated.Spec.MarshalJSON()
+	bytes, err := o.removeExternalReferences(args, federated)
 	if err != nil {
 		return err
 	}
 
-	if err = os.WriteFile(o.outputPath, data, 0644); err != nil {
+	return o.saveFile(bytes)
+}
+
+func (o *Opts) removeExternalReferences(paths []string, federated *load.SpecInfo) ([]byte, error) {
+	data, err := federated.Spec.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	content := string(data)
+	for _, path := range paths {
+		escapedPath := regexp.QuoteMeta(path)
+		pattern := regexp.MustCompile(escapedPath)
+		content = pattern.ReplaceAllString(content, "")
+	}
+
+	return []byte(content), nil
+
+}
+func (o *Opts) saveFile(data []byte) error {
+	if err := os.WriteFile(o.outputPath, data, 0644); err != nil {
 		return err
 	}
 	_, _ = fmt.Printf("\nFederated Spec was saved in '%s'\n", o.outputPath)
