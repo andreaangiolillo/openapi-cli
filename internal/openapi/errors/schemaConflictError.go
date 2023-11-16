@@ -7,5 +7,5 @@ type SchemaConflictError struct {
 }
 
 func (e SchemaConflictError) Error() string {
-	return fmt.Sprintf("there was a conflict on a the Schema component: %s", e.Entry)
+	return fmt.Sprintf("there was a conflict on a Schema component: %s", e.Entry)
 }

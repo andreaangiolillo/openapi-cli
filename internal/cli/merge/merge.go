@@ -2,14 +2,15 @@ package merge
 
 import (
 	"andreaangiolillo/openapi-cli/internal/openapi"
-	"encoding/json"
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/tufin/oasdiff/load"
 	"os"
+	"regexp"
 )
 
 type Opts struct {
-	Base       *openapi.V3Document
+	Base       *load.SpecInfo
 	Merger     openapi.Merger
 	outputPath string
 }
@@ -20,30 +21,45 @@ func (o *Opts) Run(args []string) error {
 		return err
 	}
 
-	return o.SaveFile(federated)
-}
-
-func (o *Opts) SaveFile(federated *openapi.V3Document) error {
-	data, err := json.MarshalIndent(federated, "", "    ")
+	bytes, err := o.removeExternalReferences(args, federated)
 	if err != nil {
 		return err
 	}
 
-	if err = os.WriteFile(o.outputPath, data, 0644); err != nil {
-		return err
+	return o.saveFile(bytes)
+}
+
+func (o *Opts) removeExternalReferences(paths []string, federated *load.SpecInfo) ([]byte, error) {
+	data, err := openapi.MarshalJSON(federated.Spec)
+	if err != nil {
+		return nil, err
 	}
 
-	_, _ = fmt.Printf("Federated Spec was saved in '%s'\n", o.outputPath)
+	content := string(data)
+	for _, path := range paths {
+		escapedPath := regexp.QuoteMeta(path)
+		pattern := regexp.MustCompile(escapedPath)
+		content = pattern.ReplaceAllString(content, "")
+	}
+
+	return []byte(content), nil
+
+}
+func (o *Opts) saveFile(data []byte) error {
+	if err := os.WriteFile(o.outputPath, data, 0644); err != nil {
+		return err
+	}
+	_, _ = fmt.Printf("\nFederated Spec was saved in '%s'\n", o.outputPath)
 	return nil
 }
 
 func (o *Opts) PreRunE(args []string) error {
-	d, err := openapi.NewV3Document(args[0])
+	d, err := openapi.NewSpecInfo(args[0])
 	if err != nil {
 		return err
 	}
 	o.Base = d
-	o.Merger = openapi.NewV3Merge(d)
+	o.Merger = openapi.NewOasDiffMerge(d)
 	return nil
 }
 

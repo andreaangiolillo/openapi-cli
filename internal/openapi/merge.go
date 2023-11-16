@@ -1,21 +1,40 @@
 package openapi
 
+import (
+	"fmt"
+	"github.com/tufin/oasdiff/diff"
+	"github.com/tufin/oasdiff/load"
+	"os"
+)
+
 type Merger interface {
-	Merge([]string) (*V3Document, error)
+	Merge([]string) (*load.SpecInfo, error)
 }
 
-func (o V3Merge) Merge(paths []string) (*V3Document, error) {
-	var federatedSpec *V3Document
+func (o OasDiffMerge) Merge(paths []string) (*load.SpecInfo, error) {
 	for _, p := range paths {
-		spec, err := NewV3Document(p)
+		spec, err := NewSpecInfo(p)
 		if err != nil {
 			return nil, err
 		}
 
-		federatedSpec, err = o.mergeSpecIntoBase(spec)
+		o.config = &diff.Config{
+			IncludePathParams: true,
+		}
+
+		specDiff, err := diff.Get(o.config, o.base.Spec, spec.Spec)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "error in calculating the diff of the specs: %s", err)
+			return nil, err
+		}
+
+		o.specDiff = specDiff
+		o.external = spec
+		err = o.mergeSpecIntoBase()
 		if err != nil {
 			return nil, err
 		}
 	}
-	return federatedSpec, nil
+
+	return o.base, nil
 }
