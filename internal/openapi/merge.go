@@ -11,23 +11,6 @@ type Merger interface {
 	Merge([]string) (*load.SpecInfo, error)
 }
 
-func (o V3Merge) Merge(paths []string) (*V3Document, error) {
-	var federatedSpec *V3Document
-	for _, p := range paths {
-		spec, err := NewDocument(p)
-		if err != nil {
-			return nil, err
-		}
-
-		federatedSpec, err = o.mergeSpecIntoBase(spec)
-		if err != nil {
-			return nil, err
-		}
-		//federatedSpec = spec
-	}
-	return federatedSpec, nil
-}
-
 func (o OasDiffMerge) Merge(paths []string) (*load.SpecInfo, error) {
 	for _, p := range paths {
 		spec, err := NewSpecInfo(p)
