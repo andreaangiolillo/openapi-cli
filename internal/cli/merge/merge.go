@@ -2,9 +2,10 @@ package merge
 
 import (
 	"andreaangiolillo/openapi-cli/internal/openapi"
-	"encoding/json"
 	"fmt"
+	"github.com/pb33f/libopenapi/utils"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 	"os"
 )
 
@@ -24,7 +25,8 @@ func (o *Opts) Run(args []string) error {
 }
 
 func (o *Opts) SaveFile(federated *openapi.V3Document) error {
-	data, err := json.MarshalIndent(federated, "", "    ")
+	yamlData, _ := yaml.Marshal(federated)
+	data, err := utils.ConvertYAMLtoJSONPretty(yamlData, "", "	")
 	if err != nil {
 		return err
 	}
@@ -32,13 +34,12 @@ func (o *Opts) SaveFile(federated *openapi.V3Document) error {
 	if err = os.WriteFile(o.outputPath, data, 0644); err != nil {
 		return err
 	}
-
 	_, _ = fmt.Printf("Federated Spec was saved in '%s'\n", o.outputPath)
 	return nil
 }
 
 func (o *Opts) PreRunE(args []string) error {
-	d, err := openapi.NewV3Document(args[0])
+	d, err := openapi.NewDocument(args[0])
 	if err != nil {
 		return err
 	}

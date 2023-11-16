@@ -2,6 +2,11 @@ package openapi
 
 import (
 	"andreaangiolillo/openapi-cli/internal/openapi/errors"
+	"fmt"
+	model "github.com/pb33f/libopenapi/datamodel/high/base"
+	v3model "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"os"
+	"reflect"
 )
 
 type V3Merge struct {
@@ -21,7 +26,7 @@ func (o V3Merge) mergeSpecIntoBase(spec *V3Document) (*V3Document, error) {
 		Servers: o.base.Servers,
 	}
 
-	paths, err := mergePaths(o.base.Paths, spec.Paths)
+	paths, err := mergePaths(o.base.Paths, spec.Paths.PathItems)
 	if err != nil {
 		return nil, err
 	}
@@ -42,11 +47,11 @@ func (o V3Merge) mergeSpecIntoBase(spec *V3Document) (*V3Document, error) {
 	return federatedSpec, nil
 }
 
-func mergePaths(basePaths map[string]any, pathsToMerge map[string]any) (map[string]any, error) {
-	outPathItems := map[string]any{}
+func mergePaths(basePaths *v3model.Paths, pathsToMerge map[string]*v3model.PathItem) (*v3model.Paths, error) {
+	outPathItems := map[string]*v3model.PathItem{}
 
 	// Copy base path to the federated spec paths
-	for k, v := range basePaths {
+	for k, v := range basePaths.PathItems {
 		outPathItems[k] = v
 	}
 
@@ -60,7 +65,9 @@ func mergePaths(basePaths map[string]any, pathsToMerge map[string]any) (map[stri
 		}
 	}
 
-	return outPathItems, nil
+	return &v3model.Paths{
+		PathItems: outPathItems,
+	}, nil
 }
 
 func mergeTags(baseTags []*Tag, tagsToMerge []*Tag) ([]*Tag, error) {
@@ -110,11 +117,18 @@ func mergeComponents(baseCps *Components, cpsToMerge *Components) (*Components, 
 	return outComponents, nil
 }
 
-func mergeParameters(baseCps *Components, params map[string]*any) error {
+func mergeParameters(baseCps *Components, params map[string]*v3model.Parameter) error {
 	for k, v := range params {
 		if _, ok := baseCps.Parameters[k]; !ok {
 			baseCps.Parameters[k] = v
 		} else {
+			if reflect.DeepEqual(baseCps.Schemas[k], v) {
+				// if the params are the same, we skip
+				_, _ = fmt.Fprintf(os.Stderr, "We silently resolved the conflict with the params '%s' because the definition was identical.", k)
+				continue
+			}
+
+			// The params have the same name but different definitions
 			return errors.ParamConflictError{
 				Entry: k,
 			}
@@ -124,11 +138,18 @@ func mergeParameters(baseCps *Components, params map[string]*any) error {
 	return nil
 }
 
-func mergeResponses(baseCps *Components, responses map[string]*any) error {
+func mergeResponses(baseCps *Components, responses map[string]*v3model.Response) error {
 	for k, v := range responses {
 		if _, ok := baseCps.Responses[k]; !ok {
 			baseCps.Responses[k] = v
 		} else {
+			if reflect.DeepEqual(baseCps.Schemas[k], v) {
+				// if the schemas are the same, we skip
+				_, _ = fmt.Fprintf(os.Stderr, "We silently resolved the conflict with the response '%s' because the definition was identical.", k)
+				continue
+			}
+
+			// The responses have the same name but different definitions
 			return errors.ResponseConflictError{
 				Entry: k,
 			}
@@ -138,11 +159,19 @@ func mergeResponses(baseCps *Components, responses map[string]*any) error {
 	return nil
 }
 
-func mergeSchemas(baseCps *Components, schemas map[string]*any) error {
-	for k, v := range schemas {
+func mergeSchemas(baseCps *Components, schemas map[string]*model.Schema) error {
+	for k, schemaToMerge := range schemas {
 		if _, ok := baseCps.Schemas[k]; !ok {
-			baseCps.Schemas[k] = v
+			baseCps.Schemas[k] = schemaToMerge
 		} else {
+
+			if reflect.DeepEqual(baseCps.Schemas[k], schemaToMerge) {
+				// if the schemas are the same, we skip
+				_, _ = fmt.Fprintf(os.Stderr, "We silently resolved the conflict with the schema '%s' because the definition was identical.", k)
+				continue
+			}
+
+			// The schemas have the same name but different definitions
 			return errors.SchemaConflictError{
 				Entry: k,
 			}
