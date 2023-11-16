@@ -30,7 +30,7 @@ func (o *Opts) Run(args []string) error {
 }
 
 func (o *Opts) removeExternalReferences(paths []string, federated *load.SpecInfo) ([]byte, error) {
-	data, err := federated.Spec.MarshalJSON()
+	data, err := openapi.MarshalJSON(federated.Spec)
 	if err != nil {
 		return nil, err
 	}
