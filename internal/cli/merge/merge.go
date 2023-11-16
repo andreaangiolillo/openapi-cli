@@ -3,14 +3,13 @@ package merge
 import (
 	"andreaangiolillo/openapi-cli/internal/openapi"
 	"fmt"
-	"github.com/pb33f/libopenapi/utils"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
+	"github.com/tufin/oasdiff/load"
 	"os"
 )
 
 type Opts struct {
-	Base       *openapi.V3Document
+	Base       *load.SpecInfo
 	Merger     openapi.Merger
 	outputPath string
 }
@@ -24,9 +23,9 @@ func (o *Opts) Run(args []string) error {
 	return o.SaveFile(federated)
 }
 
-func (o *Opts) SaveFile(federated *openapi.V3Document) error {
-	yamlData, _ := yaml.Marshal(federated)
-	data, err := utils.ConvertYAMLtoJSONPretty(yamlData, "", "	")
+func (o *Opts) SaveFile(federated *load.SpecInfo) error {
+	//yamlData, _ := yaml.Marshal(federated.Spec)
+	data, err := federated.Spec.MarshalJSON()
 	if err != nil {
 		return err
 	}
@@ -34,17 +33,17 @@ func (o *Opts) SaveFile(federated *openapi.V3Document) error {
 	if err = os.WriteFile(o.outputPath, data, 0644); err != nil {
 		return err
 	}
-	_, _ = fmt.Printf("Federated Spec was saved in '%s'\n", o.outputPath)
+	_, _ = fmt.Printf("\nFederated Spec was saved in '%s'\n", o.outputPath)
 	return nil
 }
 
 func (o *Opts) PreRunE(args []string) error {
-	d, err := openapi.NewDocument(args[0])
+	d, err := openapi.NewSpecInfo(args[0])
 	if err != nil {
 		return err
 	}
 	o.Base = d
-	o.Merger = openapi.NewV3Merge(d)
+	o.Merger = openapi.NewOasDiffMerge(d)
 	return nil
 }
 

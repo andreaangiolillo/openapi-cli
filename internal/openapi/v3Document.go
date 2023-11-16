@@ -3,11 +3,13 @@ package openapi
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	model "github.com/pb33f/libopenapi/datamodel/high/base"
 	v3model "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
+	"github.com/tufin/oasdiff/load"
 	"gopkg.in/yaml.v3"
 	"os"
 )
@@ -102,6 +104,19 @@ func NewV3Document(path string) (*V3Document, error) {
 	}
 
 	return doc, nil
+}
+
+func NewSpecInfo(path string) (*load.SpecInfo, error) {
+	loader := openapi3.NewLoader()
+	loader.IsExternalRefsAllowed = true
+	openapi3.CircularReferenceCounter = 10
+
+	spec, err := load.LoadSpecInfo(loader, load.NewSource(path))
+	if err != nil {
+		return nil, err
+	}
+
+	return spec, nil
 }
 
 // NewDocument returns and openAPI V3 document from a path
