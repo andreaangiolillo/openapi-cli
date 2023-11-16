@@ -3,7 +3,6 @@ package openapi
 import (
 	"andreaangiolillo/openapi-cli/internal/openapi/errors"
 	"fmt"
-	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/tufin/oasdiff/diff"
 	"github.com/tufin/oasdiff/load"
 	"os"
@@ -23,11 +22,11 @@ func NewOasDiffMerge(base *load.SpecInfo) *OasDiffMerge {
 }
 
 func (o OasDiffMerge) mergeSpecIntoBase() error {
-	if err := o.mergePaths(&o.external.Spec.Paths); err != nil {
+	if err := o.mergePaths(); err != nil {
 		return err
 	}
 
-	if err := o.mergeTags(&o.external.Spec.Tags); err != nil {
+	if err := o.mergeTags(); err != nil {
 		return err
 	}
 
@@ -38,14 +37,12 @@ func (o OasDiffMerge) mergeSpecIntoBase() error {
 	return nil
 }
 
-func (o OasDiffMerge) mergePaths(pathsToMerge *openapi3.Paths) error {
-	mergedPaths := o.base.Spec.Paths
-	for k, v := range *pathsToMerge {
-		//print("\n\nANDREA KEY PATH: \n\n")
-		//print(k)
-		//print("\n\n")
-		if _, ok := mergedPaths[k]; !ok {
-			mergedPaths[k] = v
+func (o OasDiffMerge) mergePaths() error {
+	pathsToMerge := o.external.Spec.Paths
+	basePaths := o.base.Spec.Paths
+	for k, v := range pathsToMerge {
+		if _, ok := basePaths[k]; !ok {
+			basePaths[k] = v
 		} else {
 			return errors.PathConflictError{
 				Entry: k,
@@ -53,21 +50,22 @@ func (o OasDiffMerge) mergePaths(pathsToMerge *openapi3.Paths) error {
 		}
 	}
 
-	o.base.Spec.Paths = mergedPaths
+	o.base.Spec.Paths = basePaths
 	return nil
 }
 
-func (o OasDiffMerge) mergeTags(tagsToMerge *openapi3.Tags) error {
-	mergedTags := o.base.Spec.Tags
+func (o OasDiffMerge) mergeTags() error {
+	tagsToMerge := o.external.Spec.Tags
+	baseTags := o.base.Spec.Tags
 	tagsSet := make(map[string]bool)
 
-	for _, v := range mergedTags {
+	for _, v := range baseTags {
 		tagsSet[v.Name] = true
 	}
 
-	for _, v := range *tagsToMerge {
+	for _, v := range tagsToMerge {
 		if _, ok := tagsSet[v.Name]; !ok {
-			mergedTags = append(mergedTags, v)
+			baseTags = append(baseTags, v)
 		} else {
 			return errors.TagConflictError{
 				Entry:       v.Name,
@@ -76,7 +74,7 @@ func (o OasDiffMerge) mergeTags(tagsToMerge *openapi3.Tags) error {
 		}
 	}
 
-	o.base.Spec.Tags = mergedTags
+	o.base.Spec.Tags = baseTags
 	return nil
 }
 
